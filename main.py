@@ -6,7 +6,6 @@ predicts winners for upcoming games.
 
 from __future__ import annotations
 
-import argparse
 import sys
 from dataclasses import dataclass
 from typing import Iterable, Optional
@@ -361,34 +360,68 @@ class NFLGamePredictor:
         return games_to_predict[columns].sort_values(["week", "gameday", "home_team"])
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Train an NFL winner prediction model and predict games.")
-    parser.add_argument("--train-start", type=int, default=2015, help="First season to include for training data.")
-    parser.add_argument("--train-end", type=int, default=2023, help="Last season to include for training data.")
-    parser.add_argument(
-        "--predict-season",
-        type=int,
-        default=2024,
-        help="Season for which to predict unplayed games.",
-    )
-    parser.add_argument("--week", type=int, default=None, help="Optional week filter for predictions.")
-    parser.add_argument("--top", type=int, default=16, help="How many predicted games to print.")
-    return parser.parse_args()
+def _prompt_int(prompt: str, default: int, minimum: int | None = None, maximum: int | None = None) -> int:
+    while True:
+        raw = input(f"{prompt} [{default}]: ").strip()
+        if raw == "":
+            value = default
+        else:
+            try:
+                value = int(raw)
+            except ValueError:
+                print("Please enter a whole number.")
+                continue
+
+        if minimum is not None and value < minimum:
+            print(f"Please enter a value >= {minimum}.")
+            continue
+        if maximum is not None and value > maximum:
+            print(f"Please enter a value <= {maximum}.")
+            continue
+        return value
+
+
+def _prompt_optional_int(prompt: str, default: Optional[int], minimum: int | None = None, maximum: int | None = None) -> Optional[int]:
+    shown_default = "all weeks" if default is None else str(default)
+    while True:
+        raw = input(f"{prompt} [{shown_default}]: ").strip().lower()
+        if raw in {"", "all", "none"}:
+            return default
+        try:
+            value = int(raw)
+        except ValueError:
+            print("Please enter a whole number, or press Enter for all weeks.")
+            continue
+
+        if minimum is not None and value < minimum:
+            print(f"Please enter a value >= {minimum}.")
+            continue
+        if maximum is not None and value > maximum:
+            print(f"Please enter a value <= {maximum}.")
+            continue
+        return value
+
+
+def collect_user_inputs() -> tuple[int, int, int, Optional[int], int]:
+    print("Enter model settings (press Enter to use defaults):")
+    train_start = _prompt_int("Train start season", 2015, minimum=1999)
+    train_end = _prompt_int("Train end season", 2023, minimum=train_start)
+    predict_season = _prompt_int("Predict season", 2024, minimum=train_end)
+    week = _prompt_optional_int("Predict week (or Enter for all)", None, minimum=1, maximum=22)
+    top = _prompt_int("How many predicted games to show", 16, minimum=1, maximum=272)
+    return train_start, train_end, predict_season, week, top
 
 
 def main() -> int:
-    args = parse_args()
-
-    if args.train_end < args.train_start:
-        raise ValueError("--train-end must be greater than or equal to --train-start")
+    train_start, train_end, predict_season, week, top = collect_user_inputs()
 
     predictor = NFLGamePredictor(random_state=42)
-    all_seasons = list(range(args.train_start, args.predict_season + 1))
+    all_seasons = list(range(train_start, predict_season + 1))
 
     print(f"Loading schedules for seasons: {all_seasons[0]}-{all_seasons[-1]}...")
     schedule = predictor.load_schedule(all_seasons)
 
-    train_mask = (schedule["season"] >= args.train_start) & (schedule["season"] <= args.train_end)
+    train_mask = (schedule["season"] >= train_start) & (schedule["season"] <= train_end)
     train_schedule = schedule.loc[train_mask].copy()
     print(f"Training games available: {len(train_schedule)}")
 
@@ -397,8 +430,8 @@ def main() -> int:
     predictions = predictor.predict_unplayed_games(
         model=artifacts.model,
         schedule=schedule,
-        season=args.predict_season,
-        week=args.week,
+        season=predict_season,
+        week=week,
     )
 
     if predictions.empty:
@@ -417,7 +450,7 @@ def main() -> int:
 
     print("\nPredictions")
     print("=" * 60)
-    preview = predictions.head(args.top).copy()
+    preview = predictions.head(top).copy()
     preview["home_win_probability"] = (preview["home_win_probability"] * 100).round(1)
     preview["away_win_probability"] = (preview["away_win_probability"] * 100).round(1)
     preview["confidence"] = (preview["confidence"] * 100).round(1)

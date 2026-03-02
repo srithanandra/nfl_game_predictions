@@ -19,40 +19,21 @@ pip install -r requirements.txt
 
 ## Usage
 
-```bash
-python main.py \
-  --train-start 2015 \
-  --train-end 2023 \
-  --predict-season 2024 \
-  --week 1 \
-  --top 16
-```
-
-### CLI arguments
-
-
-### Common command mistake
-
-Use:
+Run the script and answer prompts:
 
 ```bash
-python main.py --train-end 2023
+python main.py
 ```
 
-Not:
+You will be prompted for:
 
-```bash
-python --train-end 2023
-```
+- train start season (default `2015`)
+- train end season (default `2023`)
+- predict season (default `2024`)
+- predict week or all weeks (default: all weeks)
+- number of predictions to print (default `16`)
 
-`--train-end` is an argument for `main.py`, not for the Python interpreter itself.
-
-
-- `--train-start`: first season in training set (default: `2015`)
-- `--train-end`: last season in training set (default: `2023`)
-- `--predict-season`: season to generate predictions for (default: `2024`)
-- `--week`: optional week filter (default: all weeks)
-- `--top`: max number of rows to print (default: `16`)
+You can press **Enter** at each prompt to accept defaults.
 
 ## Feature engineering details
 
